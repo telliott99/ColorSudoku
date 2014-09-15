@@ -1,3 +1,12 @@
 check whether move is coherent
+done..
+
+------------------------------
+
 make window bigger
-check for finished and show a symbol
+
+check for finish and show a symbol
+
+allow user to go back from single value for a square?
+
+figure out why cleaning doesn't update UI!

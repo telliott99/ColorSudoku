@@ -13,8 +13,12 @@
 - (void)drawSmallRects;
 - (void)drawLines;
 
-- (void)fakeEditForData:(int) i rect:(NSRect)r;
-- (void)editData:(int)i forPoint:(NSPoint)p rect:(NSRect)r opt:(BOOL)cmd;
+- (void)fakeEditForData:(int)
+                 i rect:(NSRect)r;
+- (void)editData:(int)i
+        forPoint:(NSPoint)p
+            rect:(NSRect)r
+             opt:(BOOL)cmd;
 
 - (IBAction)cleanRows:(id) sender;
 - (IBAction)cleanCols:(id) sender;

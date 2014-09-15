@@ -158,7 +158,8 @@ NSMutableArray *indexList;   // holds the index where it was
     NSUInteger flags = [e modifierFlags] & mask;
     BOOL cmd = flags == NSCommandKeyMask;
     
-    NSPoint p = [self convertPoint:[e locationInWindow] fromView: nil];
+    NSPoint p = [self convertPoint:[e locationInWindow]
+                          fromView: nil];
     NSRect r;
     int i;
     for (i = 0; i < 81; i++) {
@@ -166,17 +167,30 @@ NSMutableArray *indexList;   // holds the index where it was
         if (NSPointInRect(p,r)) {
             break;
         }
+        // did not find it
         if (i == 80) { return; }
     }
-    [self editData:i forPoint:p rect:r opt:cmd];
+    [self editData:i
+          forPoint:p
+              rect:r
+               opt:cmd];
 }
 
-// already determined that p is inside r
-- (void)editData:(int)i forPoint:(NSPoint)p rect:(NSRect)r opt:(BOOL)cmd {
+// already determined that p is inside r at index i
+- (void)editData:(int)i
+        forPoint:(NSPoint)p
+            rect:(NSRect)r
+             opt:(BOOL)cmd {
+    
     NSLog(@"editData self.ds %p", ds);
     ma = [ds getData];
     NSMutableArray *old_square = [ma objectAtIndex:i];
-    NSMutableArray *sq = [NSMutableArray arrayWithArray:old_square];
+    
+    // make a copy of the data we are about to edit
+    NSMutableArray *sq =
+        [NSMutableArray arrayWithArray:old_square];
+    
+    // only edit squares that have not made single choice
     if (sq.count > 1) {
         // find which small square was clicked
         double dx = p.x - r.origin.x;
@@ -185,7 +199,9 @@ NSMutableArray *indexList;   // holds the index where it was
         int row = floor(dx/u);
         int col = floor(dy/u);
         NSNumber *n = [NSNumber numberWithInt:col*3 + row + 1];
+        
         // clicked on a small square
+        // case 1:  it is active (present in data)
         if ([sq containsObject:n]) {
             if (cmd) {
                 sq = [NSMutableArray arrayWithArray:@[n]];
@@ -193,21 +209,32 @@ NSMutableArray *indexList;   // holds the index where it was
             else {
                 [sq removeObject:n];
             }
+            // check whether proposed move is coherent
+            // if not, bail
+            if (!([ds isLegalMoveForIndex:i editedSquare:sq])) {
+                return;
+            }
         }
-        // clicked on white space where a square used to be
+        
+        // not in data
+        // place where a small square used to be
         else {
             [sq addObject:n];
         }
+        // save the move to allow undo
         [squareList addObject:old_square];
         [indexList addObject:[NSNumber numberWithInt:i]];
+        
+        // save the modified square
         [ma replaceObjectAtIndex:i withObject:sq];
-
     }
     [self setNeedsDisplay:YES];
 }
 
+// trick that didn't work to trigger UI update
 
-- (void)fakeEditForData:(int) i rect:(NSRect)r{
+- (void)fakeEditForData:(int) i
+                   rect:(NSRect)r{
     NSLog(@"fakeEdit");
     ma = [ds getData];
     NSMutableArray *old_square = [ma objectAtIndex:i];
@@ -221,8 +248,8 @@ NSMutableArray *indexList;   // holds the index where it was
 }
 
 
-// doesn't draw right away
-// but does correct undo after next edit
+// works, but doesn't draw right away
+// haven't figured out why
 
 - (IBAction)undo:(id) sender {
     NSLog(@"undo");
@@ -243,6 +270,8 @@ NSMutableArray *indexList;   // holds the index where it was
     [self setNeedsDisplay:YES];
     return;
 }
+
+// buttons in the UI for cleaning up data
 
 - (IBAction)cleanRows:(id) sender {
     [ds cleanRows];

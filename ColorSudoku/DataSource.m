@@ -5,7 +5,7 @@
 NSString *_str_data;
 NSMutableArray *_data_array;
 NSMutableArray *_puzzle_array;
-NSMutableArray *ma;
+NSMutableArray *ma;  // reusable variable
 
 - (id)init{
     if (self = [super init]) {
@@ -27,9 +27,9 @@ NSMutableArray *ma;
     NSString *s = @"puzzles";
     NSString *p = [b pathForResource:s ofType:@"txt"];
     NSString *puzzle_data = [self loadDataFromFile:p];
-    
     NSArray *a = [puzzle_data componentsSeparatedByString:@"\n"];
-    // filter the array
+    
+    // filter the array for blank lines or comment lines
     _puzzle_array = [[NSMutableArray alloc] init];
     for (NSString * line in a) {
         if ([line hasPrefix:@"#"]) { continue; }
@@ -63,10 +63,14 @@ NSMutableArray *ma;
     NSMutableArray *tmp;
     // filter first
     for (int i = 0; i < s.length; i++) {
+        
+        // is the next charcter in allowed set?
         NSRange r = NSMakeRange(i,1);
         NSString *c = [s substringWithRange:r];
         NSRange r2 = [@"123456789.0" rangeOfString:c];
         if (r2.location == NSNotFound) { continue; }
+        
+        // "0" and "." are synonyms, 1..9 each allowed
         if ([c isEqualToString:@"."] || [c isEqualToString:@"0"]) {
             NSMutableArray *all = [[NSMutableArray alloc] init];
             for (int i = 1; i < 10; i++) {
@@ -101,6 +105,38 @@ NSMutableArray *ma;
     return [ma componentsJoinedByString:@""];
 }
 
+// check whether proposed move is "coherent"
+// (would result in an illegal/conflicting board)
+
+- (BOOL)isLegalMoveForIndex:(int)i
+               editedSquare:(NSMutableArray *)sq {
+    // just a simple check:
+    if (sq.count > 1) { return YES; }
+    NSNumber *n = [sq objectAtIndex:0];
+    
+    // check squares in same row, col or box
+    for (int j = 0; j < 81; j++) {
+        if (([self sameRowFirstIndex:i
+                         secondIndex:j]) ||
+            ([self sameColFirstIndex:i
+                         secondIndex:j]) ||
+            ([self sameBoxFirstIndex:i
+                         secondIndex:j])) {
+            
+            NSMutableArray *sq2 = [_data_array objectAtIndex:j];
+            
+            // just a simple check:
+            if (sq2.count > 1) { continue; }
+            if ([[sq2 objectAtIndex:0] isEqualTo:n]) {
+                return NO;
+            }
+        }
+    }
+    return YES;
+}
+
+// check whether two squares are same row or column
+
 - (BOOL)sameRowFirstIndex:(int)i secondIndex:(int)j {
     if ((i / 9) == (j / 9)) { return YES; }
     return NO;
@@ -110,6 +146,12 @@ NSMutableArray *ma;
     if ((i % 9) == (j % 9)) { return YES; }
     return NO;
 }
+
+/*
+most of the rest of the code checks to see whether
+two squares are in the same 3 x 3 "box"
+
+*/
 
 // know the size is 9
 - (BOOL)value:(int)v isInArray:(int [])a {
@@ -177,6 +219,8 @@ NSMutableArray *ma;
     return NO;
 }
 
+// if there is only one choice for square at index
+// i *or* j, eliminate that choice for the other one
 
 - (void)makeDataCoherentFirstIndex:(int) i secondIndex:(int) j {
     NSMutableArray *a = _data_array[i];
@@ -196,6 +240,8 @@ NSMutableArray *ma;
         _data_array[j] = b;
     }
 }
+
+// triggered from buttons in the window
 
 - (void)cleanRows {
     for (int i = 0; i < 80; i++) {

@@ -26,6 +26,9 @@
 - (BOOL)sameBoxFirstIndex:(int)i secondIndex:(int)j;
 - (void)makeDataCoherentFirstIndex:(int) i secondIndex:(int) j;
 
+- (BOOL)isLegalMoveForIndex:(int)i
+               editedSquare:(NSMutableArray *)sq;
+
 - (void)cleanRows;
 - (void)cleanCols;
 - (void)cleanBoxes;
