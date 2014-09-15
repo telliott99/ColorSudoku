@@ -7,35 +7,42 @@ NSPoint o;
 int n;
 double side_len;
 double inset;
+
 NSRect rect_array [81];        // inset rects
 NSRect frame_rect_array [81];  // larger rects
 NSColor *color_array [10];
-NSMutableArray *ma;
+
+NSMutableArray *ma;            // used repeatedly
 
 // two arrays run in parallel, used for undo
 NSMutableArray *squareList;  // holds the old value for a square
 NSMutableArray *indexList;   // holds the index where it was
 
+// for breakpoints
+NSMutableArray *breakpointList;
+
 - (void)awakeFromNib{
     ds = [[DataSource alloc] init];
     [ds loadBundleData];
     NSLog(@"awake, data source: %@", [ds description]);
+    
+    // values for UI squares, hard coded
     o = NSMakePoint(20.0,20.0);
     n = 9;
     side_len = 34.0;
     inset = 4.0;
+    
     [self makeRects];
     [self makeColors];
+    
+    // for undo
     squareList = [[NSMutableArray alloc] init];
     indexList = [[NSMutableArray alloc] init];
+    breakpointList = [[NSMutableArray alloc] init];
 }
 
 - (BOOL)acceptsFirstResponder{
     return YES;
-}
-
-- (void)viewWillDraw {
-    NSLog(@"will draw");
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
@@ -46,16 +53,18 @@ NSMutableArray *indexList;   // holds the index where it was
     
     NSColor *ca[81];
     for (int i = 0; i < 81; i++) {
-        NSArray *data = [[ds getData]objectAtIndex:i];
+        NSArray *data = [[ds getDataArray]objectAtIndex:i];
         if (data.count == 1) {
             int n = [[data objectAtIndex:0] intValue];
             NSColor *c = color_array[n];
             ca[i] = c;
         }
         else {
+            // we will draw the small squares later
             ca[i] = [NSColor whiteColor];
         }
     }
+    // draw them all at once, supposed to be efficient
     NSRectFillListWithColors(rect_array, ca, 81);
     [self drawSmallRects];
     [self drawLines];
@@ -65,16 +74,35 @@ NSMutableArray *indexList;   // holds the index where it was
     double start = o.x;
     double one_third = start + 3*side_len;
     double two_thirds = one_third + 3*side_len;
-    double all = two_thirds + 3*side_len;
+    double finish = two_thirds + 3*side_len;
+    
+    // do the gray lines by stroking the frame rects
+    [NSBezierPath setDefaultLineWidth:0.5];
     [[NSColor lightGrayColor] set];
     for (int i = 0; i < 81; i++) {
         NSRect r = frame_rect_array[i];
         [NSBezierPath strokeRect:r];
     }
     
-    [NSBezierPath setDefaultLineWidth:2.0];
+    // do the blue lines
+    [NSBezierPath setDefaultLineWidth:1.5];
     [[NSColor blueColor] set];
     NSBezierPath *p = [NSBezierPath bezierPath];
+    
+    double pts[4] = {start,one_third,two_thirds,finish};
+    double coord;
+    for (int i = 0; i < 4; i++) {
+        coord = pts[i];
+        [p moveToPoint:NSMakePoint(coord,start)];
+        [p lineToPoint:NSMakePoint(coord,finish)];
+        [p stroke];
+        [p moveToPoint:NSMakePoint(start,coord)];
+        [p lineToPoint:NSMakePoint(finish,coord)];
+        [p stroke];
+    }
+}
+    
+    /*
     [p moveToPoint:NSMakePoint(start,start)];
     [p lineToPoint:NSMakePoint(all,start)];
     [p stroke];
@@ -99,11 +127,12 @@ NSMutableArray *indexList;   // holds the index where it was
     [p moveToPoint:NSMakePoint(all,start)];
     [p lineToPoint:NSMakePoint(all,all)];
     [p stroke];
-}
+     */
+
 
 // doesn't need sorted data
 - (void)drawSmallRects{
-    NSArray *ds_data = [ds getData];
+    NSArray *ds_data = [ds getDataArray];
     for (int i = 0; i < 81; i++) {
         NSArray *data = [ds_data objectAtIndex:i];
         if (data.count > 1) {
@@ -183,7 +212,7 @@ NSMutableArray *indexList;   // holds the index where it was
              opt:(BOOL)cmd {
     
     NSLog(@"editData self.ds %p", ds);
-    ma = [ds getData];
+    ma = [ds getDataArray];
     NSMutableArray *old_square = [ma objectAtIndex:i];
     
     // make a copy of the data we are about to edit
@@ -192,20 +221,25 @@ NSMutableArray *indexList;   // holds the index where it was
     
     // only edit squares that have not made single choice
     if (sq.count > 1) {
-        // find which small square was clicked
+        
+        // find out which small square was clicked
         double dx = p.x - r.origin.x;
         double dy = p.y - r.origin.y;
         double u = (side_len - 2*inset)/3;
         int row = floor(dx/u);
         int col = floor(dy/u);
+        
+        // convert index of small square to an integer (1-based)
         NSNumber *n = [NSNumber numberWithInt:col*3 + row + 1];
         
-        // clicked on a small square
+        // so we clicked on a small square
         // case 1:  it is active (present in data)
         if ([sq containsObject:n]) {
+            // CMD-click chooses that as the determined value
             if (cmd) {
                 sq = [NSMutableArray arrayWithArray:@[n]];
             }
+            // otherwise clicking just removes that small square
             else {
                 [sq removeObject:n];
             }
@@ -216,54 +250,41 @@ NSMutableArray *indexList;   // holds the index where it was
             }
         }
         
-        // not in data
-        // place where a small square used to be
+        // else, the value we "clicked" on is not in data
+        // clicked on a blank spot in the array of small squares
+        // so add it
         else {
             [sq addObject:n];
         }
-        // save the move to allow undo
+        
+        // save the move to the undo arrays
         [squareList addObject:old_square];
         [indexList addObject:[NSNumber numberWithInt:i]];
         
-        // save the modified square
+        // save the modified square in the data
+        // bad! but works.  propagates to the data source's _data_array
         [ma replaceObjectAtIndex:i withObject:sq];
     }
     [self setNeedsDisplay:YES];
 }
-
-// trick that didn't work to trigger UI update
-
-- (void)fakeEditForData:(int) i
-                   rect:(NSRect)r{
-    NSLog(@"fakeEdit");
-    ma = [ds getData];
-    NSMutableArray *old_square = [ma objectAtIndex:i];
-    NSMutableArray *sq = [NSMutableArray arrayWithArray:old_square];
-    NSNumber *n = [sq objectAtIndex:0];
-    [sq insertObject:n atIndex:0];
-    [ma replaceObjectAtIndex:i withObject:sq];
-    [ds setData:ma];
-    
-    [self setNeedsDisplay:YES];
-}
-
 
 // works, but doesn't draw right away
 // haven't figured out why
 
 - (IBAction)undo:(id) sender {
     NSLog(@"undo");
-    ma = [ds getData];
     int k = (int)squareList.count;
     if (k == 0) { return; }
     assert (k == indexList.count);
-    k -= 1;
     
     NSMutableArray *old_square = [squareList objectAtIndex:k];
     [squareList removeLastObject];
     NSNumber *n = [indexList objectAtIndex:k];
     [indexList removeLastObject];
+    
+    ma = [ds getDataArray];
     int i = (int)[n intValue];
+    // i is index of square we previously changed
     [ma replaceObjectAtIndex:i withObject:old_square];
     
     // does not have desired effect
@@ -272,12 +293,12 @@ NSMutableArray *indexList;   // holds the index where it was
 }
 
 // buttons in the UI for cleaning up data
+// cleaning resets undo stacks
 
 - (IBAction)cleanRows:(id) sender {
     [ds cleanRows];
     // does not have desired effect
     [self setNeedsDisplay:YES];
-    [self fakeEditForData:0 rect:rect_array[0]];
 }
 - (IBAction)cleanCols:(id) sender {
     [ds cleanCols];
@@ -289,6 +310,12 @@ NSMutableArray *indexList;   // holds the index where it was
     // does not have desired effect
     [self setNeedsDisplay:YES];
 }
+
+- (void)resetUndoStacks{
+    [squareList removeAllObjects];
+    [indexList removeAllObjects];
+}
+
 - (IBAction)cleanAll:(id) sender {
     [ds cleanRows];
     [ds cleanCols];
@@ -298,10 +325,37 @@ NSMutableArray *indexList;   // holds the index where it was
 }
 
 - (IBAction)newPuzzle:(id) sender {
-    NSLog(@"new");
-    int n = (int)[[ds getData] count];
+    ma = [ds getPuzzleArray];
+    int n = (int)[ma count];
     int i = (int)arc4random_uniform(n);
     [ds loadPuzzleAtIndex:i];
     [self setNeedsDisplay:YES];
 }
+
+- (IBAction)reloadPuzzle:(id) sender {
+    [ds loadPuzzleAtIndex:[ds getPuzzleIndex]];
+    [self resetUndoStacks];
+}
+
+// restoreBreakpoint doesn't work
+// data looks different
+
+/*
+- (IBAction)setBreakpoint:(id) sender {
+    ma = [ds getDataArray];
+    [breakpointList addObject:ma];
+}
+
+- (IBAction)restoreBreakpoint:(id) sender {
+    int i = (int)breakpointList.count;
+    if (i == 0) { return; }
+    i -= 1;
+    ma = [breakpointList objectAtIndex:i];
+    NSLog(@"restore, before:  %@", [[ds getDataArray] description]);
+    [ds setDataArray:ma];
+    [breakpointList removeObjectAtIndex:i];
+    [self setNeedsDisplay:YES];
+    NSLog(@"restore, after :  %@", [[ds getDataArray] description]);
+}
+*/
 @end

@@ -13,8 +13,6 @@
 - (void)drawSmallRects;
 - (void)drawLines;
 
-- (void)fakeEditForData:(int)
-                 i rect:(NSRect)r;
 - (void)editData:(int)i
         forPoint:(NSPoint)p
             rect:(NSRect)r
@@ -24,6 +22,6 @@
 - (IBAction)cleanCols:(id) sender;
 - (IBAction)cleanBoxes:(id) sender;
 - (IBAction)cleanAll:(id) sender;
-
+- (void)resetUndoStacks;
 
 @end

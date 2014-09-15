@@ -10,15 +10,16 @@
 
 @interface DataSource : NSObject
 
+- (NSMutableArray *)getDataArray;
+- (void)setDataArray:(NSMutableArray *)new_value;
+- (NSMutableArray *)getPuzzleArray;
+- (int)getPuzzleIndex;
 
 - (void)loadBundleData;
 - (NSString *)loadDataFromFile:(NSString *)fn;
 
 - (void)loadPuzzleAtIndex:(int)i;
 - (void)convertStringToDataArray:(NSString *)s;
-
-- (NSMutableArray *)getData;
-- (void)setData:(NSMutableArray *)new_value;
 
 - (BOOL)sameRowFirstIndex:(int)i secondIndex:(int)j;
 - (BOOL)sameColFirstIndex:(int)i secondIndex:(int)j;

@@ -6,6 +6,7 @@ NSString *_str_data;
 NSMutableArray *_data_array;
 NSMutableArray *_puzzle_array;
 NSMutableArray *ma;  // reusable variable
+int puzzleIndex;
 
 - (id)init{
     if (self = [super init]) {
@@ -14,12 +15,20 @@ NSMutableArray *ma;  // reusable variable
     return nil;
 }
 
-- (NSMutableArray *)getData {
+- (NSMutableArray *)getDataArray {
     return _data_array;
 }
 
-- (void)setData:(NSMutableArray *)new_value {
+- (void)setDataArray:(NSMutableArray *)new_value {
     _data_array = new_value;
+}
+
+- (NSMutableArray *)getPuzzleArray {
+    return _puzzle_array;
+}
+
+- (int)getPuzzleIndex {
+    return puzzleIndex;
 }
 
 - (void)loadBundleData {
@@ -36,12 +45,13 @@ NSMutableArray *ma;  // reusable variable
         if ([line isEqualToString:@""]) { continue; }
         [_puzzle_array addObject:line];
     }
-    [self loadPuzzleAtIndex:0];
+    
+    puzzleIndex = 0;
+    [self loadPuzzleAtIndex:puzzleIndex];
 }
 
 - (void)loadPuzzleAtIndex:(int)i {
-    NSString *demo = [_puzzle_array objectAtIndex:i];
-    _str_data = demo;
+    _str_data = [_puzzle_array objectAtIndex:i];
     [self convertStringToDataArray:_str_data];
 }
 
@@ -85,6 +95,7 @@ NSMutableArray *ma;  // reusable variable
         }
         [ma addObject:tmp];
     }
+    // direct assignment!
     _data_array = ma;
 }
 
@@ -162,61 +173,24 @@ two squares are in the same 3 x 3 "box"
 }
 
 - (BOOL)sameBoxFirstIndex:(int)i secondIndex:(int)j {
-    int a[9] = {0,1,2,9,10,11,18,19,20};
-    if ([self value:i isInArray:a]) {
-        if ([self value:j isInArray:a]) {
-            return YES;
-        }
+    // move i down to first 3 rows
+    // do same subtraction to j, whatever its value
+    while (i >= 27) {
+        i -= 27;
+        j -= 27;
     }
+    assert (0 <= i <= 26);
+    
+    // subtract enough to move i to lower left box
+    // do same subtraction to j, whatever its value
     int b[9] = {3,4,5,12,13,14,21,22,23};
-    if ([self value:i isInArray:b]) {
-        if ([self value:j isInArray:b]) {
-            return YES;
-        }
-    }
     int c[9] = {6,7,8,15,16,17,24,25,26};
-    if ([self value:i isInArray:c]) {
-        if ([self value:j isInArray:c]) {
-            return YES;
-        }
-    }
-    int d[9] = {27,28,29,36,37,38,45,46,47};
-    if ([self value:i isInArray:d]) {
-        if ([self value:j isInArray:d]) {
-            return YES;
-        }
-    }
-    int e[9] = {30,31,32,39,40,41,48,49,50};
-    if ([self value:i isInArray:e]) {
-        if ([self value:j isInArray:e]) {
-            return YES;
-        }
-    }
-    int f[9] = {33,34,35,42,43,44,51,52,53};
-    if ([self value:i isInArray:f]) {
-        if ([self value:j isInArray:f]) {
-            return YES;
-        }
-    }
-    int g[9] = {54,55,56,63,64,65,72,73,74};
-    if ([self value:i isInArray:g]) {
-        if ([self value:j isInArray:g]) {
-            return YES;
-        }
-    }
-    int h[9] = {57,58,59,66,67,68,75,76,77};
-    if ([self value:i isInArray:h]) {
-        if ([self value:j isInArray:h]) {
-            return YES;
-        }
-    }
-    int aa[9] = {60,61,62,69,70,71,78,79,80};
-    if ([self value:i isInArray:aa]) {
-        if ([self value:j isInArray:aa]) {
-            return YES;
-        }
-    }
-    return NO;
+    if ([self value:i isInArray:c]) { j -= 6; }
+    if ([self value:i isInArray:b]) { j -= 3; }
+    
+    // if j is now in the lower left box too, it is the same box as i
+    int a[9] = {0,1,2,9,10,11,18,19,20};
+    return [self value:j isInArray:a];
 }
 
 // if there is only one choice for square at index
